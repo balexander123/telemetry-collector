@@ -1,0 +1,20 @@
+# Pivnet params
+pivnet_api_token: REPLACE_ME 
+
+# Params for an S3-compatible repository
+s3_access_key_id: telemetryaccount
+s3_secret_access_key: REPLACE_ME 
+s3_endpoint: REPLACE_ME 
+s3_bucket: telemetrycollector
+
+# Params for telemetry
+telemetry_api_key: REPLACE_ME 
+cf_api_url: https://api.sys.diamondbar.cf-app.com 
+usage_service_url: https://app-usage.sys.diamondbar.cf-app.com
+usage_service_client_id: usage_service
+usage_service_client_secret: REPLACE_ME 
+
+# Params for opsman
+ops_manager_url: https://pcf.diamondbar.cf-app.com
+ops_manager_username: pivotalcf
+#ops_manager_password: REPLACE_ME 

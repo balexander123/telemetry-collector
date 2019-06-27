@@ -1,0 +1,88 @@
+---
+resource_types:
+- name: pivnet
+  type: registry-image
+  source:
+    repository: pivotalcf/pivnet-resource
+    tag: latest-final
+resources:
+- name: task-docker-image 
+  type: registry-image 
+  source: 
+    repository: ubuntu 
+    tag: xenial
+- name: pivnet-telemetry
+  type: pivnet
+  source:
+    api_token: {{pivnet_api_token}}
+    product_slug: pivotal-telemetry-collector
+    # product_version: ^0\.7\.[0-9]+$
+    sort_by: semver
+  check_every: 24h
+# - name: telemetry-collector-storage
+#   type: s3
+#   source:
+#     access_key_id: {{s3_access_key_id}}
+#     secret_access_key: {{s3_secret_access_key}}
+#     endpoint: {{s3_endpoint}}
+#     bucket: {{s3_bucket}}
+#     regexp: "telemetry-collector-linux-amd64-0.7.3"
+
+jobs:
+- name: job-telemetry
+  public: true
+  plan:
+  - get: task-docker-image
+  - get: binary-with-version
+    resource: pivnet-telemetry
+  - task: remove-version
+    image: task-docker-image
+    config:
+      platform: linux
+      inputs:
+      - name: binary-with-version
+      outputs:
+      - name: binary
+      run:
+        path: sh
+        args:
+        - -c
+        - |
+          #!/bin/bash
+
+          set -xe
+
+          for fileName in $(find ./binary-with-version -name "telemetry-collector-linux-amd64*"); do
+            if [ ! -z "$BIN_NAME" ]; then
+              echo "More than one binary file matching pattern found"
+              exit 1
+            fi
+
+            BIN_NAME=$fileName
+          done
+
+          cp "$BIN_NAME" ./binary/telemetry-collector-linux-amd64
+  - task: telemetry-capture
+    image: task-docker-image
+    file: binary-with-version/concourse-collect-task-0.7.3.yml
+    params:
+      OPS_MANAGER_URL: {{ops_manager_url}}
+      OPS_MANAGER_USERNAME: {{ops_manager_username}}
+      OPS_MANAGER_PASSWORD: {{ops_manager_password}}
+      # ASPIRATION 1043: get this from credhub OPS_MANAGER_PASSWORD: ((ops_manager_password))
+      OPS_MANAGER_CLIENT_ID: ""
+      OPS_MANAGER_CLIENT_SECRET: ""
+      OPS_MANAGER_TIMEOUT:
+      ENV_TYPE: development
+      INSECURE_SKIP_TLS_VERIFY: true
+      WITH_CREDHUB_INFO:
+      CF_API_URL: {{cf_api_url}}
+      USAGE_SERVICE_URL: {{usage_service_url}}
+      USAGE_SERVICE_CLIENT_ID: {{usage_service_client_id}}
+      USAGE_SERVICE_CLIENT_SECRET: {{usage_service_client_secret}}
+      USAGE_SERVICE_INSECURE_SKIP_TLS_VERIFY: true
+  - task: telemetry-send
+    image: task-docker-image
+    file: binary-with-version/concourse-send-task-0.7.3.yml
+    params:
+      API_KEY: {{telemetry_api_key}}
